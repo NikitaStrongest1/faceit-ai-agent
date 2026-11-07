@@ -1,37 +1,39 @@
-# Python environments
-venv/
-.venv/
-env/
-Include/
-Lib/
-Scripts/
-share/
-pyvenv.cfg
 
-# Secrets
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
 
+# Python virtual environments
+venv/
+.venv/
+env/
+
 # Python cache
 __pycache__/
 *.py[cod]
+*$py.class
 
-# FACEIT browser session
-faceit_browser_profile/
+# IDE
+.idea/
+.vscode/
 
 # Demo files
 demos/
 *.dem
-*.dem.zst
+*.dem.gz
 
-# IDE
-.vscode/
-.idea/
+# Browser profiles
+faceit_browser_profile/
 
-# Logs
+# Temporary files
 *.log
-
-# System
 .DS_Store
 Thumbs.db
+
+# Root virtual environment
+/Include/
+/Lib/
+/Scripts/
+/share/
+/pyvenv.cfg

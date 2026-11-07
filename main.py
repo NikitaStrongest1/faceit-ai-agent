@@ -1,15 +1,10 @@
 
-from datetime import datetime
-
 from services.faceit_api import (
     get_player,
-    get_player_matches as get_faceit_matches,
-    get_match_details
+    get_player_matches as get_faceit_matches
 )
 
-from services.database import save_player
-from services.faceit_demo_download import download_faceit_demo
-from services.leetify_import import import_matches
+from services.faceit_import import import_matches
 
 from services.analytics import (
     get_overall_stats,
@@ -37,40 +32,37 @@ def main():
         print("Player not found!")
         return
 
-    # 3. Сохранение игрока в PostgreSQL
-    player_db_id = save_player(player)
-
     player_id = player["player_id"]
     player_steam_id = player["games"]["cs2"]["game_player_id"]
 
-    print("Player database ID:", player_db_id)
-
-    # 4. Информация об игроке
+    # 3. Информация об игроке
     print("\n===== PLAYER INFORMATION =====")
 
     print("Nickname:", player["nickname"])
     print("ELO:", player["games"]["cs2"]["faceit_elo"])
     print("Steam ID:", player_steam_id)
 
-    # 5. Импорт матчей Leetify
-    print("\n===== LEETIFY DATA IMPORT =====")
+    # 4. Импорт матчей FACEIT в PostgreSQL
+    print("\n===== FACEIT DATA IMPORT =====")
 
-    imported_steam_id = import_matches(nickname)
+    player_db_id = import_matches(nickname)
 
-    if not imported_steam_id:
-        print("Не удалось загрузить статистику Leetify!")
+    if not player_db_id:
+        print("Не удалось загрузить статистику FACEIT!")
         return
 
-    # 6. Общая статистика
-    stats = get_overall_stats(imported_steam_id)
+    print("Player database ID:", player_db_id)
+
+    # 5. Общая статистика
+    stats = get_overall_stats(player_db_id)
 
     print("\n===== OVERALL STATISTICS =====")
 
     for name, value in stats.items():
         print(f"{name}: {value}")
 
-    # 7. Победы и поражения
-    win_stats = get_win_stats(imported_steam_id)
+    # 6. Победы и поражения
+    win_stats = get_win_stats(player_db_id)
 
     print("\n===== WIN / LOSS STATISTICS =====")
 
@@ -79,8 +71,8 @@ def main():
     print("Losses:", win_stats["losses"])
     print("Win Rate:", str(win_stats["win_rate"]) + "%")
 
-    # 8. Статистика по картам
-    maps = get_map_stats(imported_steam_id)
+    # 7. Статистика по картам
+    maps = get_map_stats(player_db_id)
 
     print("\n===== MAP STATISTICS =====")
 
@@ -106,8 +98,8 @@ def main():
             f"{hs:<12}"
         )
 
-    # 9. Последние 10 матчей
-    recent_matches = get_recent_matches(imported_steam_id, 10)
+    # 8. Последние 10 матчей
+    recent_matches = get_recent_matches(player_db_id, 10)
 
     print("\n===== LAST 10 MATCHES =====")
 
@@ -159,7 +151,7 @@ def main():
             f"{str(hs_percent):<8}"
         )
 
-    # 10. Получение истории матчей FACEIT
+    # 9. История матчей FACEIT
     print("\n===== FACEIT MATCH HISTORY =====")
 
     matches_data = get_faceit_matches(player_id, limit=20)
@@ -176,12 +168,9 @@ def main():
         print("Матчи не найдены!")
         return
 
-    # 11. Вывод списка матчей
     print("\n===== MATCH LIST =====")
 
-    available_matches = []
-
-    for match in matches:
+    for index, match in enumerate(matches, start=1):
 
         teams = match.get("teams", {})
         my_team = None
@@ -190,7 +179,7 @@ def main():
 
             for match_player in team_data.get("players", []):
 
-                if match_player["player_id"] == player_id:
+                if match_player.get("player_id") == player_id:
                     my_team = team_name
                     break
 
@@ -217,87 +206,15 @@ def main():
         else:
             result = "LOSS"
 
-        match_date = datetime.fromtimestamp(
-            match["started_at"]
-        ).strftime("%d.%m.%Y %H:%M")
-
         opponent_name = teams.get(opponent_team, {}).get(
-            "nickname", "Unknown"
+            "name", "Unknown"
         )
 
-        available_matches.append(match)
-
-        print(f"\n{len(available_matches)}. {match_date}")
+        print(f"\n{index}.")
         print("Opponent:", opponent_name)
         print("Score:", f"{my_score} : {opponent_score}")
         print("Result:", result)
         print("Match ID:", match["match_id"])
-
-    if not available_matches:
-        print("Нет доступных матчей для выбора!")
-        return
-
-    # 12. Выбор матча
-    print("\n===== SELECT MATCH =====")
-
-    match_number_text = input(
-        f"Enter match number (1-{len(available_matches)}): "
-    )
-
-    try:
-        match_number = int(match_number_text)
-    except ValueError:
-        print("Введите корректный номер!")
-        return
-
-    if match_number < 1 or match_number > len(available_matches):
-        print("Invalid match number!")
-        return
-
-    selected_match = available_matches[match_number - 1]
-    selected_match_id = selected_match["match_id"]
-
-    print("\n===== SELECTED MATCH =====")
-    print("Match ID:", selected_match_id)
-
-    # 13. Получение подробной информации о матче
-    print("\n===== MATCH DETAILS =====")
-
-    match_details = get_match_details(selected_match_id)
-
-    if not match_details:
-        print("Не удалось получить информацию о матче!")
-
-    else:
-
-        demo_urls = match_details.get("demo_url", [])
-
-        if not demo_urls:
-            print("Для этого матча демо недоступно!")
-
-        else:
-
-            demo_url = demo_urls[0]
-
-            print("\n===== AUTOMATIC DEMO DOWNLOAD =====")
-
-            try:
-
-                demo_path = download_faceit_demo(
-                    selected_match_id,
-                    demo_url
-                )
-
-                if demo_path:
-                    print("\nDemo saved:", demo_path)
-                else:
-                    print("Не удалось скачать демо.")
-
-            except Exception as error:
-
-                print("\nОшибка скачивания демо!")
-                print("Причина:", error)
-                print("Попробуй скачать демо позже.")
 
     print("\n===== COMPLETED =====")
 
