@@ -1,0 +1,37 @@
+# Python environments
+venv/
+.venv/
+env/
+Include/
+Lib/
+Scripts/
+share/
+pyvenv.cfg
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# FACEIT browser session
+faceit_browser_profile/
+
+# Demo files
+demos/
+*.dem
+*.dem.zst
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# System
+.DS_Store
+Thumbs.db
